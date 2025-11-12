@@ -65,61 +65,73 @@ class CPU:
             result = res
             wb["write_reg"] = rc_idx
             wb["write_val"] = res.result
+
         elif mnem == "sub":
             res = alu.sub_op(ra_val, rb_val)
             result = res
             wb["write_reg"] = rc_idx
             wb["write_val"] = res.result
+
         elif mnem == "zeros":
             res = alu.zeros_op()
             result = res
             wb["write_reg"] = rc_idx
             wb["write_val"] = res.result
+
         elif mnem == "xor":
             res = alu.xor_op(ra_val, rb_val)
             result = res
             wb["write_reg"] = rc_idx
             wb["write_val"] = res.result
+
         elif mnem == "or":
             res = alu.or_op(ra_val, rb_val)
             result = res
             wb["write_reg"] = rc_idx
             wb["write_val"] = res.result
+
         elif mnem == "passnota":
             res = alu.not_op(ra_val)
             result = res
             wb["write_reg"] = rc_idx
             wb["write_val"] = res.result
+
         elif mnem == "and":
             res = alu.and_op(ra_val, rb_val)
             result = res
             wb["write_reg"] = rc_idx
             wb["write_val"] = res.result
+
         elif mnem == "asl":
             res = alu.asl_op(ra_val, rb_val & 0x1F)
             result = res
             wb["write_reg"] = rc_idx
             wb["write_val"] = res.result
+
         elif mnem == "asr":
             res = alu.asr_op(ra_val, rb_val & 0x1F)
             result = res
             wb["write_reg"] = rc_idx
             wb["write_val"] = res.result
+
         elif mnem == "lsl":
             res = alu.lsl_op(ra_val, rb_val & 0x1F)
             result = res
             wb["write_reg"] = rc_idx
             wb["write_val"] = res.result
+
         elif mnem == "lsr":
             res = alu.lsr_op(ra_val, rb_val & 0x1F)
             result = res
             wb["write_reg"] = rc_idx
             wb["write_val"] = res.result
+
         elif mnem == "passa":
             res = alu.passa_op(ra_val)
             result = res
             wb["write_reg"] = rc_idx
             wb["write_val"] = res.result
+
         elif mnem == "lcl_msb":
             const16 = d["const16"]  # bits 23..8
             # rc = (const16 << 16) | (rc & 0x0000ffff)
@@ -127,18 +139,21 @@ class CPU:
             new = ((const16 << 16) & 0xFFFF0000) | (old & 0x0000FFFF)
             wb["write_reg"] = d["rc"]
             wb["write_val"] = new
+
         elif mnem == "lcl_lsb":
             const16 = d["const16"]
             old = d["rc_val"]
             new = (const16 & 0xFFFF) | (old & 0xFFFF0000)
             wb["write_reg"] = d["rc"]
             wb["write_val"] = new
+
         elif mnem == "load":
             # load rc, ra -> rc = memoria[ra]
             addr = ra_val & 0xFFFF
             val = self.mem.read(addr)
             wb["write_reg"] = d["rc"]
             wb["write_val"] = val
+
         elif mnem == "store":
             # store rc, ra -> memoria[rc] = ra
             addr = d["rc"]  # note: PDF: rc is address register index; but B.16 layout: ra 23-16, rc 7-0 -> store r3, r6 memo[rc] = ra
@@ -146,22 +161,78 @@ class CPU:
             # Simpler (and matching description): memory[rc_register_value] = ra_value.
             addr_val = d["rc_val"]
             self.mem.write(addr_val & 0xFFFF, d["ra_val"])
+
         elif mnem == "jal":
             # jal end -> r31 = PC; PC = end
             self.rf.write(31, self.PC)  # PC already incremented in IF
             self.PC = d["end24"]
+
         elif mnem == "jr":
             # jr rc -> PC = rc
             self.PC = d["rc_val"]
+
         elif mnem == "beq":
             if d["ra_val"] == d["rb_val"]:
                 # PC was already incrementado in IF, but per PDF if jump taken, PC <- end
                 self.PC = d["end24"]
+
         elif mnem == "bne":
             if d["ra_val"] != d["rb_val"]:
                 self.PC = d["end24"]
+
         elif mnem == "j":
             self.PC = d["end24"]
+
+        #instrucoes adicinadas
+        elif mnem == "storei":
+            alu.storei_op(self.mem, d["end24"], d["ra_val"])
+
+        elif mnem == "loadi":
+            val = alu.loadi_op(self.mem, d["end24"])
+            wb["write_reg"] = d["rc"]
+            wb["write_val"] = val
+        
+        elif mnem == "mul":
+            res = alu.mul_op(d["ra_val"], d["rb_val"])
+            wb["write_reg"] = d["rc"]
+            wb["write_val"] = res.result
+            self.flags.update({"neg": res.neg, "zero": res.zero,
+                               "carry": res.carry, "overflow": res.overflow})
+
+        elif mnem == "div":
+            res = alu.div_op(d["ra_val"], d["rb_val"])
+            wb["write_reg"] = d["rc"]
+            wb["write_val"] = res.result
+            self.flags.update({"neg": res.neg, "zero": res.zero,
+                               "carry": res.carry, "overflow": res.overflow})
+
+        elif mnem == "mod":
+            res = alu.mod_op(d["ra_val"], d["rb_val"])
+            wb["write_reg"] = d["rc"]
+            wb["write_val"] = res.result
+            self.flags.update({"neg": res.neg, "zero": res.zero,
+                               "carry": res.carry, "overflow": res.overflow})
+
+        elif mnem == "neg":
+            res = alu.neg_op(d["ra_val"])
+            wb["write_reg"] = d["rc"]
+            wb["write_val"] = res.result
+            self.flags.update({"neg": res.neg, "zero": res.zero,
+                               "carry": res.carry, "overflow": res.overflow})
+
+        elif mnem == "inc":
+            res = alu.inc_op(d["ra_val"])
+            wb["write_reg"] = d["ra"]  # incrementa o mesmo registrador
+            wb["write_val"] = res.result
+            self.flags.update({"neg": res.neg, "zero": res.zero,
+                               "carry": res.carry, "overflow": res.overflow})
+
+        elif mnem == "dec":
+            res = alu.dec_op(d["ra_val"])
+            wb["write_reg"] = d["ra"]  # decrementa o mesmo registrador
+            wb["write_val"] = res.result
+            self.flags.update({"neg": res.neg, "zero": res.zero,
+                               "carry": res.carry, "overflow": res.overflow})
         else:
             # unknown instruction: ignore (or raise)
             pass
@@ -257,7 +328,7 @@ class CPU:
 if __name__ == "__main__":
     import sys
     if len(sys.argv) < 2:
-        print("Uso: python -m src.simulador.unidade_de_controle bin/teste1.bin")
+        print("Uso: python -m src.simulador.unidade_de_controle bin/teste3.bin")
         sys.exit(1)
     cpu = CPU(sys.argv[1])
     cpu.run(verbose=True)

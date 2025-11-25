@@ -96,3 +96,67 @@ def and_op(a, b):
     zero = 1 if res == 0 else 0
     # Operações lógicas não geram carry nem overflow
     return ALUResult(res, neg, zero, 0, 0)
+
+def passa_op(a):
+    res = a & MASK32
+    neg = 1 if res & 0x80000000 else 0
+    zero = 1 if res == 0 else 0
+    return ALUResult(res, neg, zero, 0, 0)
+
+# NOVAS OPERAÇÕES ALU (uRISC ESTENDIDO)
+
+def mod_op(a, b):
+    if b == 0:
+        res = 0
+    else:
+        res = int(a % b) & MASK32
+    neg = 1 if res & 0x80000000 else 0
+    zero = 1 if res == 0 else 0
+    return ALUResult(res, neg, zero, 0, 0)
+
+def neg_op(a):
+    res = (-a) & MASK32
+    neg = 1 if res & 0x80000000 else 0
+    zero = 1 if res == 0 else 0
+    return ALUResult(res, neg, zero, 0, 0)
+
+def inc_op(a):
+    res = (a + 1) & MASK32
+    neg = 1 if res & 0x80000000 else 0
+    zero = 1 if res == 0 else 0
+    return ALUResult(res, neg, zero, 0, 0)
+
+def dec_op(a):
+    res = (a - 1) & MASK32
+    neg = 1 if res & 0x80000000 else 0
+    zero = 1 if res == 0 else 0
+    return ALUResult(res, neg, zero, 0, 0)
+
+def asl_op(a, b_shifts):  # arithmetic left == logical left for typical two's complement
+    sh = b_shifts & 0x1F  # Máscara para garantir shift máximo de 31 bits
+    res = (a << sh) & MASK32
+    neg = 1 if res & 0x80000000 else 0
+    zero = 1 if res == 0 else 0
+    return ALUResult(res, neg, zero, 0, 0)
+
+def asr_op(a, b_shifts): # Arithmetic Shift Right (Preserva o sinal)
+    sh = b_shifts & 0x1F
+    signed = to_signed32(a) # Converte para signed para o Python propagar o bit de sinal
+    res = (signed >> sh) & MASK32
+    neg = 1 if res & 0x80000000 else 0
+    zero = 1 if res == 0 else 0
+    return ALUResult(res, neg, zero, 0, 0)
+
+def lsl_op(a, b_shifts): # Logical Shift Left (Idêntico ao ASL nesta implementação)
+    sh = b_shifts & 0x1F
+    res = (a << sh) & MASK32
+    neg = 1 if res & 0x80000000 else 0
+    zero = 1 if res == 0 else 0
+    return ALUResult(res, neg, zero, 0, 0)
+
+def lsr_op(a, b_shifts): # Logical Shift Right (Preenche com zeros)
+    sh = b_shifts & 0x1F
+    res = (a & MASK32) >> sh # Garante operação unsigned
+    neg = 1 if res & 0x80000000 else 0
+    zero = 1 if res == 0 else 0
+    return ALUResult(res, neg, zero, 0, 0)

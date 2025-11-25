@@ -73,8 +73,8 @@ def or_op(a, b):
     # Operações lógicas não geram carry nem overflow
     return ALUResult(res, neg, zero, 0, 0)
 
-    # Operação NOT: negação lógica, inverte todos os bits
-    # Instrução: passnota rc, ra -> rc = NOT ra
+# Operação NOT: negação lógica, inverte todos os bits
+# Instrução: passnota rc, ra -> rc = NOT ra
 def not_op(a):
     # Inverte todos os bits (0 vira 1, 1 vira 0)
     res = (~a) & MASK32  # Operação NOT com máscara de 32 bits
@@ -85,8 +85,8 @@ def not_op(a):
     # Operações lógicas não geram carry nem overflow
     return ALUResult(res, neg, zero, 0, 0)
 
-    # Operação AND: E lógico bit a bit
-    # Instrução: and rc, ra, rb -> rc = ra AND rb  
+# Operação AND: E lógico bit a bit
+# Instrução: and rc, ra, rb -> rc = ra AND rb  
 def and_op(a, b):
     # Cada bit do resultado é 1 apenas se ambos bits correspondentes forem 1
     res = (a & b) & MASK32  # Operação AND com máscara de 32 bits
@@ -95,4 +95,39 @@ def and_op(a, b):
      # Flag zero: verifica se o resultado final é zero, todos os bits são 0
     zero = 1 if res == 0 else 0
     # Operações lógicas não geram carry nem overflow
+    return ALUResult(res, neg, zero, 0, 0)
+
+def passa_op(a):
+    res = a & MASK32
+    neg = 1 if res & 0x80000000 else 0
+    zero = 1 if res == 0 else 0
+    return ALUResult(res, neg, zero, 0, 0)
+
+# NOVAS OPERAÇÕES ALU (uRISC ESTENDIDO)
+
+def mod_op(a, b):
+    if b == 0:
+        res = 0
+    else:
+        res = int(a % b) & MASK32
+    neg = 1 if res & 0x80000000 else 0
+    zero = 1 if res == 0 else 0
+    return ALUResult(res, neg, zero, 0, 0)
+
+def neg_op(a):
+    res = (-a) & MASK32
+    neg = 1 if res & 0x80000000 else 0
+    zero = 1 if res == 0 else 0
+    return ALUResult(res, neg, zero, 0, 0)
+
+def inc_op(a):
+    res = (a + 1) & MASK32
+    neg = 1 if res & 0x80000000 else 0
+    zero = 1 if res == 0 else 0
+    return ALUResult(res, neg, zero, 0, 0)
+
+def dec_op(a):
+    res = (a - 1) & MASK32
+    neg = 1 if res & 0x80000000 else 0
+    zero = 1 if res == 0 else 0
     return ALUResult(res, neg, zero, 0, 0)

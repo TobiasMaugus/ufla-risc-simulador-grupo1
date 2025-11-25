@@ -73,8 +73,8 @@ def or_op(a, b):
     # Operações lógicas não geram carry nem overflow
     return ALUResult(res, neg, zero, 0, 0)
 
-    # Operação NOT: negação lógica, inverte todos os bits
-    # Instrução: passnota rc, ra -> rc = NOT ra
+# Operação NOT: negação lógica, inverte todos os bits
+# Instrução: passnota rc, ra -> rc = NOT ra
 def not_op(a):
     # Inverte todos os bits (0 vira 1, 1 vira 0)
     res = (~a) & MASK32  # Operação NOT com máscara de 32 bits
@@ -85,8 +85,8 @@ def not_op(a):
     # Operações lógicas não geram carry nem overflow
     return ALUResult(res, neg, zero, 0, 0)
 
-    # Operação AND: E lógico bit a bit
-    # Instrução: and rc, ra, rb -> rc = ra AND rb  
+# Operação AND: E lógico bit a bit
+# Instrução: and rc, ra, rb -> rc = ra AND rb  
 def and_op(a, b):
     # Cada bit do resultado é 1 apenas se ambos bits correspondentes forem 1
     res = (a & b) & MASK32  # Operação AND com máscara de 32 bits

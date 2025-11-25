@@ -40,3 +40,59 @@ def sub_op(a, b):
     neg = 1 if (res & 0x80000000) else 0
     zero = 1 if res == 0 else 0
     return ALUResult(res, neg, zero, carry, overflow)
+
+# Operação ZEROS: define o resultado como zero
+# Instrução: zeros rc -> rc = 0
+def zeros_op():
+    res = 0
+    # Flags: neg=0 (não é negativo), zero=1 (resultado é zero), 
+    # carry=0 (sem carry), overflow=0 (sem overflow)
+    return ALUResult(res, 0, 1, 0, 0)
+
+# Operação XOR: OU exclusivo bit a bit
+# Instrução: xor rc, ra, rb -> rc = ra XOR rb
+def xor_op(a, b):
+    # Operação XOR com máscara de 32 bits (evita números representados por mais de 32 bits)
+    res = (a ^ b) & MASK32  
+    # Flag negativo: verifica se o bit mais significativo (bit 31) é 1
+    neg = 1 if res & 0x80000000 else 0
+    # Flag zero: verifica se o resultado final é zero, todos os bits são 0
+    zero = 1 if res == 0 else 0
+    # Operações lógicas não geram carry nem overflow
+    return ALUResult(res, neg, zero, 0, 0)
+
+# Operação OR: OU lógico bit a bit  
+# Instrução: or rc, ra, rb -> rc = ra OR rb
+def or_op(a, b):
+    # Operação OR com máscara de 32 bits (evita números representados por mais de 32 bits)
+    res = (a | b) & MASK32
+    # Flag negativo: verifica se o bit mais significativo (bit 31) é 1
+    neg = 1 if res & 0x80000000 else 0
+    # Flag zero: verifica se o resultado final é zero, todos os bits são 0
+    zero = 1 if res == 0 else 0
+    # Operações lógicas não geram carry nem overflow
+    return ALUResult(res, neg, zero, 0, 0)
+
+    # Operação NOT: negação lógica, inverte todos os bits
+    # Instrução: passnota rc, ra -> rc = NOT ra
+def not_op(a):
+    # Inverte todos os bits (0 vira 1, 1 vira 0)
+    res = (~a) & MASK32  # Operação NOT com máscara de 32 bits
+    # Flag negativo: verifica se o bit mais significativo (bit 31) é 1
+    neg = 1 if res & 0x80000000 else 0
+    # Flag zero: verifica se todos os bits são zero após a negação
+    zero = 1 if res == 0 else 0
+    # Operações lógicas não geram carry nem overflow
+    return ALUResult(res, neg, zero, 0, 0)
+
+    # Operação AND: E lógico bit a bit
+    # Instrução: and rc, ra, rb -> rc = ra AND rb  
+def and_op(a, b):
+    # Cada bit do resultado é 1 apenas se ambos bits correspondentes forem 1
+    res = (a & b) & MASK32  # Operação AND com máscara de 32 bits
+    # Flag negativo: verifica se o bit mais significativo (bit 31) é 1
+    neg = 1 if res & 0x80000000 else 0
+     # Flag zero: verifica se o resultado final é zero, todos os bits são 0
+    zero = 1 if res == 0 else 0
+    # Operações lógicas não geram carry nem overflow
+    return ALUResult(res, neg, zero, 0, 0)

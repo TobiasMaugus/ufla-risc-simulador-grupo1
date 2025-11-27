@@ -105,6 +105,21 @@ def passa_op(a):
 
 # NOVAS OPERAÇÕES ALU (uRISC ESTENDIDO)
 
+def mul_op(a, b):
+    res = (a * b) & MASK32
+    neg = 1 if res & 0x80000000 else 0
+    zero = 1 if res == 0 else 0
+    return ALUResult(res, neg, zero, 0, 0)
+
+def div_op(a, b):
+    if b == 0:
+        res = 0
+    else:
+        res = int(a // b) & MASK32
+    neg = 1 if res & 0x80000000 else 0
+    zero = 1 if res == 0 else 0
+    return ALUResult(res, neg, zero, 0, 0)
+
 def mod_op(a, b):
     if b == 0:
         res = 0

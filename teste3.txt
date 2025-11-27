@@ -1,0 +1,10 @@
+# Agora usamos J para pular para a linha 'lcl_lsb r6, 55'
+j 2
+
+# Esta linha será pulada (Endereço 8)
+lcl_lsb r5, 123
+
+# Execução continua aqui (Endereço 9)
+lcl_lsb r6, 55
+
+halt (Endereço 10)

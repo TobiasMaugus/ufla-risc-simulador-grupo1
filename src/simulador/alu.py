@@ -155,3 +155,23 @@ def dec_op(a):
     zero = 1 if res == 0 else 0
     return ALUResult(res, neg, zero, 0, 0)
 
+
+def store_op(mem, addr, value):
+    """
+    Armazena value em mem no endereço addr.
+    `mem` pode ser um dict ou lista. Aqui gravamos por *byte-addressing* (endereço exato).
+    Se sua memória for baseada em words (endereço/4), troque a linha word_addr = addr // 4.
+    """
+    # Se mem for dicionário:
+    word_addr = addr        # supondo endereçamento por byte/posição
+    mem[word_addr] = value & MASK32
+
+def load_op(mem, addr):
+    """
+    Carrega valor de mem[addr].
+    """
+    word_addr = addr
+    return mem.get(word_addr, 0)  # retorna 0 se não existir
+
+
+

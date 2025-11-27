@@ -1,0 +1,9 @@
+address 0
+lcl_lsb r1, 15
+lcl_lsb r2, 25 
+lcl_lsb r3, 5 
+
+neg r5, r1         # r1 = -r5 = -15
+passa r2, r18       # r18 = r7 = 25 (copia)
+passnota r3, r20    # r20 = not r1 (inverte bits)
+halt

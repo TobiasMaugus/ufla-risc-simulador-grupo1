@@ -1,0 +1,5 @@
+address 0
+lcl_lsb r1, 15 
+storei r1, 10
+loadi r3, 10
+halt

@@ -2,13 +2,21 @@
 # Orquestra IF, ID, EX/MEM, WB em quatro rotinas por instrução
 # Usa interpretador_de_instrucoes, memoria, banco_de_registradores, alu
 
-from src.interpretador.interpretador_de_instrucoes import parse_program, decode_instruction, INSTRUCOES
+from src.interpretador.interpretador_de_instrucoes import parse_program, asm_to_binary, decode_instruction
 from src.simulador.memoria import Memoria
 from src.simulador.banco_de_registradores import RegisterFile
 import src.simulador.alu as alu
+import os
 
 class CPU:
     def __init__(self, program_path):
+        # Se for .txt (assembly), converte para .bin
+        if program_path.endswith(".txt"):
+            bin_path = os.path.join("bin", os.path.basename(program_path).replace(".txt", ".bin"))
+            os.makedirs("bin", exist_ok=True)
+            asm_to_binary(program_path, bin_path)
+            program_path = bin_path
+        
         self.mem = Memoria()
         parsed = parse_program(program_path)
         self.mem.load_program(parsed)
@@ -17,32 +25,50 @@ class CPU:
         self.IR = None  # 32-bit value
         self.flags = {"neg":0, "zero":0, "carry":0, "overflow":0}
         self.halted = False
-        # Estágios do pipeline (Simplificado, pois cada instrução passa por 4 rotinas)
+        # pipeline latches (simplified, pois cada instrução passa por 4 rotinas)
         self.decoded = None
         self.exec_result = None
         self.writeback_info = None
         self.cycle = 0
 
     def if_stage(self):
-        # busca iinstrução e incrementa PC
+        # busca instruction and increment PC
         instr_word = self.mem.read(self.PC)
-        # Armazena string de 32-bits para decodificação
+        # store original 32-bit string representation for decode
         instr_bits = format(instr_word & 0xFFFFFFFF, '032b')
         self.IR = instr_bits
         self.PC += 1
+        # debug / output
+        # note: decode will happen in ID stage
         return instr_bits
 
     def id_stage(self, instr_bits):
-        # Decodificando e lendo registradores
+        # decode and read registers
         decoded = decode_instruction(instr_bits)
         self.decoded = decoded
-        # Ler registrador de operandos(se tiver)
+        # read register operands (if applicable, and only if valid register indices)
         ra = decoded["ra"]
         rb = decoded["rb"]
         rc = decoded["rc"]
-        decoded["ra_val"] = self.rf.read(ra)
-        decoded["rb_val"] = self.rf.read(rb)
-        decoded["rc_val"] = self.rf.read(rc)
+        
+        # Only read registers if they're in valid range (0-31)
+        # Some instructions use these fields for constants/addresses
+        if 0 <= ra < 32:
+            decoded["ra_val"] = self.rf.read(ra)
+        else:
+            decoded["ra_val"] = 0
+        
+        if 0 <= rb < 32:
+            decoded["rb_val"] = self.rf.read(rb)
+        else:
+            decoded["rb_val"] = 0
+            
+        if 0 <= rc < 32:
+            decoded["rc_val"] = self.rf.read(rc)
+        else:
+            decoded["rc_val"] = 0
+            
+        
         return decoded
 
     def ex_mem_stage(self):
@@ -50,24 +76,30 @@ class CPU:
         if not d:
             return None
         mnem = d["mnemonic"]
+        ra = d["ra"]
         ra_val = d["ra_val"]
         rb_val = d["rb_val"]
+        rc = d["rc"]
+        rc_val = d["rc_val"]
         rc_idx = d["rc"]
         result = None
         wb = {"write_reg": None, "write_val": None, "mem_write": None, "mem_addr": None}
-        
+        # Handle instructions
         if mnem == "halt":
             self.halted = True
         elif mnem == "add":
-            res = alu.add_op(ra_val, rb_val)
+            # add r1, r2, r3 -> r1 = r2 + r3 (format: dest, src1, src2)
+            # ra = destination, rb = src1, rc = src2
+            res = alu.add_op(rb_val, rc_val)
             result = res
-            wb["write_reg"] = rc_idx
+            wb["write_reg"] = ra
             wb["write_val"] = res.result
 
         elif mnem == "sub":
-            res = alu.sub_op(ra_val, rb_val)
+            # sub r1, r2, r3 -> r1 = r2 - r3
+            res = alu.sub_op(rb_val, rc_val)
             result = res
-            wb["write_reg"] = rc_idx
+            wb["write_reg"] = ra
             wb["write_val"] = res.result
 
         elif mnem == "zeros":
@@ -77,15 +109,17 @@ class CPU:
             wb["write_val"] = res.result
 
         elif mnem == "xor":
-            res = alu.xor_op(ra_val, rb_val)
+            # xor r1, r2, r3 -> r1 = r2 xor r3
+            res = alu.xor_op(rb_val, rc_val)
             result = res
-            wb["write_reg"] = rc_idx
+            wb["write_reg"] = ra
             wb["write_val"] = res.result
 
         elif mnem == "or":
-            res = alu.or_op(ra_val, rb_val)
+            # or r1, r2, r3 -> r1 = r2 or r3
+            res = alu.or_op(rb_val, rc_val)
             result = res
-            wb["write_reg"] = rc_idx
+            wb["write_reg"] = ra
             wb["write_val"] = res.result
 
         elif mnem == "passnota":
@@ -95,33 +129,38 @@ class CPU:
             wb["write_val"] = res.result
 
         elif mnem == "and":
-            res = alu.and_op(ra_val, rb_val)
+            # and r1, r2, r3 -> r1 = r2 and r3
+            res = alu.and_op(rb_val, rc_val)
             result = res
-            wb["write_reg"] = rc_idx
+            wb["write_reg"] = ra
             wb["write_val"] = res.result
 
         elif mnem == "asl":
-            res = alu.asl_op(ra_val, rb_val & 0x1F)
+            # asl r1, r2, r3 -> r1 = r2 << r3
+            res = alu.asl_op(rb_val, rc_val & 0x1F)
             result = res
-            wb["write_reg"] = rc_idx
+            wb["write_reg"] = ra
             wb["write_val"] = res.result
 
         elif mnem == "asr":
-            res = alu.asr_op(ra_val, rb_val & 0x1F)
+            # asr r1, r2, r3 -> r1 = r2 >> r3 (arithmetic)
+            res = alu.asr_op(rb_val, rc_val & 0x1F)
             result = res
-            wb["write_reg"] = rc_idx
+            wb["write_reg"] = ra
             wb["write_val"] = res.result
 
         elif mnem == "lsl":
-            res = alu.lsl_op(ra_val, rb_val & 0x1F)
+            # lsl r1, r2, r3 -> r1 = r2 << r3 (logical)
+            res = alu.lsl_op(rb_val, rc_val & 0x1F)
             result = res
-            wb["write_reg"] = rc_idx
+            wb["write_reg"] = ra
             wb["write_val"] = res.result
 
         elif mnem == "lsr":
-            res = alu.lsr_op(ra_val, rb_val & 0x1F)
+            # lsr r1, r2, r3 -> r1 = r2 >> r3 (logical)
+            res = alu.lsr_op(rb_val, rc_val & 0x1F)
             result = res
-            wb["write_reg"] = rc_idx
+            wb["write_reg"] = ra
             wb["write_val"] = res.result
 
         elif mnem == "passa":
@@ -131,7 +170,8 @@ class CPU:
             wb["write_val"] = res.result
 
         elif mnem == "lcl_msb":
-            const16 = d["const16"]
+            const16 = d["const16"]  # bits 23..8
+            # rc = (const16 << 16) | (rc & 0x0000ffff)
             old = d["rc_val"]
             new = ((const16 << 16) & 0xFFFF0000) | (old & 0x0000FFFF)
             wb["write_reg"] = d["rc"]
@@ -145,95 +185,102 @@ class CPU:
             wb["write_val"] = new
 
         elif mnem == "load":
-            # load rc, ra -> rc = memoria[ra]
-            addr = ra_val & 0xFFFF
+            # load rc, ra  → rc = MEM[ ra ]
+            addr = d["ra_val"] & 0xFFFF
             val = self.mem.read(addr)
+
             wb["write_reg"] = d["rc"]
             wb["write_val"] = val
 
+
         elif mnem == "store":
-            # store rc, ra -> memoria[rc] = ra
-            addr = d["rc"]
-            addr_val = self.rf.read(addr) if False else d["rc_val"]
-            addr_val = d["rc_val"]
-            self.mem.write(addr_val & 0xFFFF, d["ra_val"])
+            # store rc, ra  → MEM[ rc ] = ra
+            addr = d["rc_val"] & 0xFFFF
+            data = d["ra_val"]
+
+            self.mem.write(addr, data)
+
+        elif mnem == "storei":
+            # storei ra, imm8 → mem[imm8] = ra_val
+            address = d["rc"]   # rc contém o imediato no seu assembler atual
+            value = d["ra_val"]
+            self.mem.write(address & 0xFFFF, value)
+            wb = {}  # storei não escreve registradores
+
+        elif mnem == "loadi":
+            addr = d["end24"] & 0xFFFF
+            val  = self.mem.read(addr)
+            wb["write_reg"] = d["rc"] 
+            wb["write_reg"] = d["ra"]
+            wb["write_val"] = val
+
 
         elif mnem == "jal":
-            # jal end -> r31 = PC; PC = end
             self.rf.write(31, self.PC)
             self.PC = d["end24"]
 
         elif mnem == "jr":
-            # jr rc -> PC = rc
-            self.PC = d["rc_val"]
+            self.PC = d["ra_val"]
 
         elif mnem == "beq":
+            offset = self.sign_extend_8_to_32(d["const8"])
+            
             if d["ra_val"] == d["rb_val"]:
-                # PC já foi incrementado no IF
-                self.PC = d["end24"]
+                self.PC += offset
 
         elif mnem == "bne":
+            offset = self.sign_extend_8_to_32(d["const8"])
+            
             if d["ra_val"] != d["rb_val"]:
-                self.PC = d["end24"]
+                self.PC += offset
 
         elif mnem == "j":
             self.PC = d["end24"]
 
-        #instrucoes adicinadas
-        elif mnem == "storei":
-            alu.storei_op(self.mem, d["end24"], d["ra_val"])
-
-        elif mnem == "loadi":
-            val = alu.loadi_op(self.mem, d["end24"])
-            wb["write_reg"] = d["rc"]
-            wb["write_val"] = val
         
         elif mnem == "mul":
-            res = alu.mul_op(d["ra_val"], d["rb_val"])
-            wb["write_reg"] = d["rc"]
+            # mul r1, r2, r3 -> r1 = r2 * r3
+            res = alu.mul_op(rb_val, rc_val)
+            result = res
+            wb["write_reg"] = ra
             wb["write_val"] = res.result
-            self.flags.update({"neg": res.neg, "zero": res.zero,
-                               "carry": res.carry, "overflow": res.overflow})
 
         elif mnem == "div":
-            res = alu.div_op(d["ra_val"], d["rb_val"])
-            wb["write_reg"] = d["rc"]
+            # div r1, r2, r3 -> r1 = r2 / r3
+            res = alu.div_op(rb_val, rc_val)
+            result = res
+            wb["write_reg"] = ra
             wb["write_val"] = res.result
-            self.flags.update({"neg": res.neg, "zero": res.zero,
-                               "carry": res.carry, "overflow": res.overflow})
 
         elif mnem == "mod":
-            res = alu.mod_op(d["ra_val"], d["rb_val"])
-            wb["write_reg"] = d["rc"]
+            # mod r1, r2, r3 -> r1 = r2 % r3
+            res = alu.mod_op(rb_val, rc_val)
+            result = res
+            wb["write_reg"] = ra
             wb["write_val"] = res.result
-            self.flags.update({"neg": res.neg, "zero": res.zero,
-                               "carry": res.carry, "overflow": res.overflow})
 
         elif mnem == "neg":
             res = alu.neg_op(d["ra_val"])
+            result = res
             wb["write_reg"] = d["rc"]
             wb["write_val"] = res.result
-            self.flags.update({"neg": res.neg, "zero": res.zero,
-                               "carry": res.carry, "overflow": res.overflow})
 
         elif mnem == "inc":
             res = alu.inc_op(d["ra_val"])
+            result = res
             wb["write_reg"] = d["ra"]  # incrementa o mesmo registrador
             wb["write_val"] = res.result
-            self.flags.update({"neg": res.neg, "zero": res.zero,
-                               "carry": res.carry, "overflow": res.overflow})
 
         elif mnem == "dec":
             res = alu.dec_op(d["ra_val"])
+            result = res
             wb["write_reg"] = d["ra"]  # decrementa o mesmo registrador
             wb["write_val"] = res.result
-            self.flags.update({"neg": res.neg, "zero": res.zero,
-                               "carry": res.carry, "overflow": res.overflow})
         else:
-            # Caso alguma instrução seja desconhecida, pula
+            # unknown instruction: ignore (or raise)
             pass
 
-        # Atualiza as flags de acordo com o resultado da ALU
+        # update flags if result produced by ALU operations
         if result:
             self.flags["neg"] = result.neg
             self.flags["zero"] = result.zero
@@ -248,7 +295,12 @@ class CPU:
         if not wb:
             return
         if wb.get("write_reg") is not None:
-            self.rf.write(wb["write_reg"], wb["write_val"])
+            reg_idx = wb["write_reg"]
+            # Only write to valid register indices (0-31)
+            if 0 <= reg_idx < 32:
+                self.rf.write(reg_idx, wb["write_val"])
+        # mem writes already performed in EX for our simple model
+        # clear writeback_info
         self.writeback_info = None
 
     
@@ -316,6 +368,11 @@ class CPU:
                 if verbose:
                     print("HALT encountered. Stopping.")
                 break
+    def sign_extend_8_to_32(self, val_8_bit):
+        """Estende o sinal de um valor de 8 bits para 32 bits."""
+        if (val_8_bit & 0x80) != 0:  # Verifica o bit de sinal (bit 7)
+            return val_8_bit | 0xFFFFFF00 # Estende o sinal
+        return val_8_bit
 
 
 

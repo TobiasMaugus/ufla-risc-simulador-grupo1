@@ -1,10 +1,10 @@
 # interpretador_de_instrucoes.py
-# Lê arquivo de instrucoes (txt) e decodifica instruções de 32 bits
+# Lê arquivo de instrucoes (texto binário) com diretiva 'address' e decodifica instruções de 32 bits
 
 from typing import Tuple, Dict
 import os
 
-# Mapa de opcode (aqui usamos nomes coerentes com o PDF)
+# Map opcoded -> mnemonic (aqui usamos nomes coerentes com o PDF)
 INSTRUCOES = {
     "00000001": "add",
     "00000010": "sub",
@@ -41,6 +41,7 @@ INSTRUCOES = {
 def parse_program(path: str) -> Dict[int, str]:
     """
     Lê arquivo de instruções (texto) e retorna dicionário memória: endereco (int) -> instrução (32-bit string)
+    Aceita diretiva 'address BINARIO' como no PDF.
     """
     mem = {}
     pc = 0
@@ -74,6 +75,7 @@ def decode_instruction(instr_bits: str) -> dict:
     # campos alternativos
     end24 = instr_bits[8:32]   # bits 23..0
     const16 = instr_bits[8:24] # bits 23..8
+    const8 = instr_bits[24:32]
     mnemonic = INSTRUCOES.get(opcode, "unknown")
     return {
         "bits": instr_bits,
@@ -83,7 +85,8 @@ def decode_instruction(instr_bits: str) -> dict:
         "rb": int(rb, 2),
         "rc": int(rc, 2),
         "end24": int(end24, 2),
-        "const16": int(const16, 2)
+        "const16": int(const16, 2),
+        "const8": int(const8, 2)
     }
 
 def asm_to_binary(asm_path: str, bin_path: str) -> None:
@@ -108,7 +111,7 @@ def asm_to_binary(asm_path: str, bin_path: str) -> None:
                 pc = int(parts[1])
                 continue
             
-            # Remove vírgulas e splits
+            # Remove vírgulas e split
             line_clean = line.replace(',', ' ')
             parts = line_clean.split()
             mnem = parts[0]
@@ -119,34 +122,96 @@ def asm_to_binary(asm_path: str, bin_path: str) -> None:
             opcode = REVERSE_INST[mnem]
             instr_bits = opcode
             
-            # Analisa o formato da instrução e identifica os operandos
+            # Parse operands based on instruction type
             if mnem == "halt":
                 instr_bits += "00000000" + "00000000" + "00000000"
             
             elif mnem in ["lcl_lsb", "lcl_msb"]:
-                # Formato: lcl_lsb r1, 10
+                # Format: lcl_lsb r1, 10
                 rc = int(parts[1].replace('r', ''))
                 const16 = int(parts[2])
                 instr_bits += format(const16, '016b') + format(rc, '08b')
             
-            elif mnem in ["add", "sub", "xor", "or", "and", "mul", "div", "mod"]:
-                # Formato: add r1, r2, r3
+            elif mnem in ["add", "sub", "xor", "or", "and", "mul", "div", "mod", "asl", "asr", "lsl", "lsr"]:
+                # Format: add r1, r2, r3 (or lsl r1, r2, r3)
                 ra = int(parts[1].replace('r', ''))
                 rb = int(parts[2].replace('r', ''))
                 rc = int(parts[3].replace('r', ''))
                 instr_bits += format(ra, '08b') + format(rb, '08b') + format(rc, '08b')
             
             elif mnem in ["inc", "dec"]:
-                # Formato: inc r1
+                # Format: inc r1
                 ra = int(parts[1].replace('r', ''))
                 instr_bits += format(ra, '08b') + "00000000" + "00000000"
             
             elif mnem in ["passa", "passnota", "neg"]:
-                # Formato: passa ra, rc
+                # Format: passa ra, rc
                 ra = int(parts[1].replace('r', ''))
                 rc = int(parts[2].replace('r', ''))
                 instr_bits += format(ra, '08b') + "00000000" + format(rc, '08b')
             
+            elif mnem == "load":
+                # load rc, ra  → rc = mem[ra]
+                rc = int(parts[1].replace('r', ''))
+                ra = int(parts[2].replace('r', ''))
+                instr_bits += format(ra, '08b') + "00000000" + format(rc, '08b')
+
+            elif mnem == "store":
+                # store ra, rc → mem[rc] = ra
+                ra = int(parts[1].replace('r', ''))
+                rc = int(parts[2].replace('r', ''))
+                instr_bits += format(ra, '08b') + "00000000" + format(rc, '08b')
+
+            elif mnem == "loadi":
+                rd = int(parts[1].replace('r', ''))
+                imm = int(parts[2])                 
+                
+                instr_bits += format(rd, '08b') + format(imm, '016b') 
+
+
+
+            elif mnem == "storei":
+                ra = int(parts[1].replace('r', ''))
+                imm = int(parts[2])
+                instr_bits += format(ra, '08b') + format(imm, '016b')
+
+            elif mnem == "jal":
+                imm = int(parts[1])        # apenas IMM24
+                instr_bits += format(imm, '024b')
+
+            elif mnem == "jr":
+                ra = int(parts[1].replace('r', ''))
+                instr_bits += format(ra, '08b') + "00000000" + "00000000"
+
+            
+
+            elif mnem == "j":
+                imm = int(parts[1])
+                instr_bits += format(imm, '024b')
+
+            elif mnem == "beq":
+                ra = int(parts[1].replace("r", ""))
+                rb = int(parts[2].replace("r", ""))
+                imm = int(parts[3]) & 0xFF
+                instr_bits += (
+                    format(ra, "08b") +
+                    format(rb, "08b") +
+                    format(imm, "08b")
+            )    
+
+            elif mnem == "bne":
+                ra = int(parts[1].replace("r", ""))
+                rb = int(parts[2].replace("r", ""))
+                imm = int(parts[3]) & 0xFF
+                instr_bits += (
+                    format(ra, "08b") +
+                    format(rb, "08b") +
+                    format(imm, "08b")
+                )
+
+
+
+
             else:
                 # Para outras instruções, preencher com zeros
                 instr_bits += "00000000" + "00000000" + "00000000"
@@ -157,7 +222,7 @@ def asm_to_binary(asm_path: str, bin_path: str) -> None:
             binary_code[pc] = instr_bits
             pc += 1
     
-    # Salva em formato de texto
+    # Salva em formato TEXTO (como o teste1.bin que você mandou)
     os.makedirs(os.path.dirname(bin_path), exist_ok=True)
     with open(bin_path, "w", encoding='utf-8') as f:
         f.write(f"address {format(0, '032b')}\n")
@@ -165,4 +230,5 @@ def asm_to_binary(asm_path: str, bin_path: str) -> None:
             f.write(binary_code[addr] + "\n")
     
     print(f"✓ Convertido: {asm_path} -> {bin_path}")
-    
+
+

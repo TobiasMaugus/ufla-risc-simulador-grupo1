@@ -1,0 +1,10 @@
+address 0
+lcl_lsb r1, 0
+lcl_lsb r2, 3
+inc r1
+inc r1
+inc r1
+dec r2
+dec r2
+add r1, r2, r3
+halt

@@ -24,8 +24,7 @@ class RegisterFile:
         # Armazena o valor no registrador aplicando máscara de 32 bits (simula overflow)
         self.regs[idx] = value & 0xFFFFFFFF
 
-    # Retorna lista de registradores com valores diferentes de zero
-    # Útil para o log ou debug - mostra apenas registradores que estão sendo usados
+    # Retorna lista de registradores com valores diferentes de zero para o debug do que está sendo utilizado
     def dump_nonzero(self):
         # Formato: [(índice, valor), (índice, valor), ...]
         return [(i, v) for i, v in enumerate(self.regs) if v != 0]

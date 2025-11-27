@@ -17,28 +17,26 @@ class CPU:
         self.IR = None  # 32-bit value
         self.flags = {"neg":0, "zero":0, "carry":0, "overflow":0}
         self.halted = False
-        # pipeline latches (simplified, pois cada instrução passa por 4 rotinas)
+        # Estágios do pipeline (Simplificado, pois cada instrução passa por 4 rotinas)
         self.decoded = None
         self.exec_result = None
         self.writeback_info = None
         self.cycle = 0
 
     def if_stage(self):
-        # busca instruction and increment PC
+        # busca iinstrução e incrementa PC
         instr_word = self.mem.read(self.PC)
-        # store original 32-bit string representation for decode
+        # Armazena string de 32-bits para decodificação
         instr_bits = format(instr_word & 0xFFFFFFFF, '032b')
         self.IR = instr_bits
         self.PC += 1
-        # debug / output
-        # note: decode will happen in ID stage
         return instr_bits
 
     def id_stage(self, instr_bits):
-        # decode and read registers
+        # Decodificando e lendo registradores
         decoded = decode_instruction(instr_bits)
         self.decoded = decoded
-        # read register operands (if applicable)
+        # Ler registrador de operandos(se tiver)
         ra = decoded["ra"]
         rb = decoded["rb"]
         rc = decoded["rc"]
@@ -57,7 +55,7 @@ class CPU:
         rc_idx = d["rc"]
         result = None
         wb = {"write_reg": None, "write_val": None, "mem_write": None, "mem_addr": None}
-        # Handle instructions
+        
         if mnem == "halt":
             self.halted = True
         elif mnem == "add":
@@ -133,8 +131,7 @@ class CPU:
             wb["write_val"] = res.result
 
         elif mnem == "lcl_msb":
-            const16 = d["const16"]  # bits 23..8
-            # rc = (const16 << 16) | (rc & 0x0000ffff)
+            const16 = d["const16"]
             old = d["rc_val"]
             new = ((const16 << 16) & 0xFFFF0000) | (old & 0x0000FFFF)
             wb["write_reg"] = d["rc"]
@@ -156,15 +153,14 @@ class CPU:
 
         elif mnem == "store":
             # store rc, ra -> memoria[rc] = ra
-            addr = d["rc"]  # note: PDF: rc is address register index; but B.16 layout: ra 23-16, rc 7-0 -> store r3, r6 memo[rc] = ra
-            addr_val = self.rf.read(addr) if False else d["rc_val"]  # but PDF says memo[rc] = ra (rc interpreted as register index)
-            # Simpler (and matching description): memory[rc_register_value] = ra_value.
+            addr = d["rc"]
+            addr_val = self.rf.read(addr) if False else d["rc_val"]
             addr_val = d["rc_val"]
             self.mem.write(addr_val & 0xFFFF, d["ra_val"])
 
         elif mnem == "jal":
             # jal end -> r31 = PC; PC = end
-            self.rf.write(31, self.PC)  # PC already incremented in IF
+            self.rf.write(31, self.PC)
             self.PC = d["end24"]
 
         elif mnem == "jr":
@@ -173,7 +169,7 @@ class CPU:
 
         elif mnem == "beq":
             if d["ra_val"] == d["rb_val"]:
-                # PC was already incrementado in IF, but per PDF if jump taken, PC <- end
+                # PC já foi incrementado no IF
                 self.PC = d["end24"]
 
         elif mnem == "bne":
@@ -234,10 +230,10 @@ class CPU:
             self.flags.update({"neg": res.neg, "zero": res.zero,
                                "carry": res.carry, "overflow": res.overflow})
         else:
-            # unknown instruction: ignore (or raise)
+            # Caso alguma instrução seja desconhecida, pula
             pass
 
-        # update flags if result produced by ALU operations
+        # Atualiza as flags de acordo com o resultado da ALU
         if result:
             self.flags["neg"] = result.neg
             self.flags["zero"] = result.zero
@@ -253,8 +249,6 @@ class CPU:
             return
         if wb.get("write_reg") is not None:
             self.rf.write(wb["write_reg"], wb["write_val"])
-        # mem writes already performed in EX for our simple model
-        # clear writeback_info
         self.writeback_info = None
 
     

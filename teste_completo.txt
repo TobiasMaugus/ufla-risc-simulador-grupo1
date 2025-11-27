@@ -1,0 +1,37 @@
+address 0
+# Teste completo com várias instruções do uRISC
+lcl_lsb r1, 15
+lcl_lsb r2, 25 
+lcl_lsb r3, 5 
+lcl_lsb r4, 100
+lcl_lsb r19, 2 
+
+# Operações aritméticas básicas (formato: dest, src1, src2)
+add r5, r1, r2      # r5 = r1 + r2 = 15 + 25 = 40
+sub r6, r2, r1      # r6 = r2 - r1 = 25 - 15 = 10
+mul r7, r1, r3      # r7 = r1 * r3 = 15 * 5 = 75
+div r8, r4, r3      # r8 = r4 / r3 = 100 / 5 = 20
+mod r9, r4, r1      # r9 = r4 % r1 = 100 % 15 = 10
+
+# Operações lógicas
+xor r10, r1, r2     # r10 = r1 xor r2 = 15 xor 25 = 22
+or r11, r1, r3      # r11 = r1 or r3 = 15 or 5 = 15
+and r12, r1, r2     # r12 = r1 and r2 = 15 and 25 = 9
+
+# Operações de deslocamento
+lsl r13, r1, r3     # r13 = r1 << r3 = 15 << 5 = 480
+lsr r14, r4, r3     # r14 = r4 >> r3 = 100 >> 5 = 3
+asl r15, r3, r19    # r15 = r3 << r19 = 5 << 2 = 20
+asr r16, r4, r19    # r16 = r4 >> r19 = 100 >> 2 = 25
+
+# Operações unárias (inc/dec modificam o registrador diretamente)
+inc r1              # r1 = r1 + 1 = 16
+dec r2              # r2 = r2 - 1 = 24
+
+# Operações de cópia e negação (formato: src, dest)
+neg r5, r17         # r17 = -r5 = -40
+passa r7, r18       # r18 = r7 = 75 (copia)
+passnota r1, r20    # r20 = not r1 (inverte bits)
+
+halt
+

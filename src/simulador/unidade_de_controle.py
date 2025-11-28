@@ -25,34 +25,27 @@ class CPU:
         self.IR = None  # 32-bit value
         self.flags = {"neg":0, "zero":0, "carry":0, "overflow":0}
         self.halted = False
-        # pipeline latches (simplified, pois cada instrução passa por 4 rotinas)
+
         self.decoded = None
         self.exec_result = None
         self.writeback_info = None
         self.cycle = 0
 
     def if_stage(self):
-        # busca instruction and increment PC
         instr_word = self.mem.read(self.PC)
-        # store original 32-bit string representation for decode
         instr_bits = format(instr_word & 0xFFFFFFFF, '032b')
         self.IR = instr_bits
         self.PC += 1
-        # debug / output
-        # note: decode will happen in ID stage
         return instr_bits
 
     def id_stage(self, instr_bits):
         # decode and read registers
         decoded = decode_instruction(instr_bits)
         self.decoded = decoded
-        # read register operands (if applicable, and only if valid register indices)
         ra = decoded["ra"]
         rb = decoded["rb"]
         rc = decoded["rc"]
         
-        # Only read registers if they're in valid range (0-31)
-        # Some instructions use these fields for constants/addresses
         if 0 <= ra < 32:
             decoded["ra_val"] = self.rf.read(ra)
         else:
@@ -202,10 +195,10 @@ class CPU:
 
         elif mnem == "storei":
             # storei ra, imm8 → mem[imm8] = ra_val
-            address = d["rc"]   # rc contém o imediato no seu assembler atual
+            address = d["rc"]
             value = d["ra_val"]
             self.mem.write(address & 0xFFFF, value)
-            wb = {}  # storei não escreve registradores
+            wb = {}
 
         elif mnem == "loadi":
             addr = d["end24"] & 0xFFFF
@@ -277,7 +270,6 @@ class CPU:
             wb["write_reg"] = d["ra"]  # decrementa o mesmo registrador
             wb["write_val"] = res.result
         else:
-            # unknown instruction: ignore (or raise)
             pass
 
         # update flags if result produced by ALU operations
@@ -299,8 +291,6 @@ class CPU:
             # Only write to valid register indices (0-31)
             if 0 <= reg_idx < 32:
                 self.rf.write(reg_idx, wb["write_val"])
-        # mem writes already performed in EX for our simple model
-        # clear writeback_info
         self.writeback_info = None
 
     
@@ -316,9 +306,7 @@ class CPU:
             print()
 
         while not self.halted and self.cycle < max_cycles:
-            # ================================
             # IF: Busca da instrução
-            # ================================
             self.cycle += 1
             instr_bits = self.if_stage()
             if verbose:
@@ -327,9 +315,7 @@ class CPU:
             if self.halted:
                 break
 
-            # ================================
             # ID: Decodificação
-            # ================================
             self.cycle += 1
             decoded = self.id_stage(instr_bits)
             if verbose:
@@ -338,9 +324,7 @@ class CPU:
             if self.halted:
                 break
 
-            # ================================
             # EX/MEM: Execução e acesso à memória
-            # ================================
             self.cycle += 1
             wbinfo = self.ex_mem_stage()
             if verbose:
@@ -350,9 +334,7 @@ class CPU:
             # Se a instrução for HALT, marca mas continua até WB
             is_halt = self.decoded["mnemonic"] == "halt" if self.decoded else False
 
-            # ================================
             # WB: Escrita de resultados
-            # ================================
             self.cycle += 1
             self.writeback_info = wbinfo
             self.wb_stage()
@@ -379,7 +361,6 @@ class CPU:
 if __name__ == "__main__":
     import sys
     if len(sys.argv) < 2:
-        print("Uso: python -m src.simulador.unidade_de_controle bin/teste3.bin")
         sys.exit(1)
     cpu = CPU(sys.argv[1])
     cpu.run(verbose=True)

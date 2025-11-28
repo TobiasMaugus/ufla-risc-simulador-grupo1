@@ -1,10 +1,8 @@
 # interpretador_de_instrucoes.py
-# Lê arquivo de instrucoes (texto binário) com diretiva 'address' e decodifica instruções de 32 bits
-
 from typing import Tuple, Dict
 import os
 
-# Map opcoded -> mnemonic (aqui usamos nomes coerentes com o PDF)
+# Map opcoded -> mnemonic
 INSTRUCOES = {
     "00000001": "add",
     "00000010": "sub",
@@ -39,10 +37,6 @@ INSTRUCOES = {
 }
 
 def parse_program(path: str) -> Dict[int, str]:
-    """
-    Lê arquivo de instruções (texto) e retorna dicionário memória: endereco (int) -> instrução (32-bit string)
-    Aceita diretiva 'address BINARIO' como no PDF.
-    """
     mem = {}
     pc = 0
     with open(path, "r") as f:
@@ -222,7 +216,6 @@ def asm_to_binary(asm_path: str, bin_path: str) -> None:
             binary_code[pc] = instr_bits
             pc += 1
     
-    # Salva em formato TEXTO (como o teste1.bin que você mandou)
     os.makedirs(os.path.dirname(bin_path), exist_ok=True)
     with open(bin_path, "w", encoding='utf-8') as f:
         f.write(f"address {format(0, '032b')}\n")

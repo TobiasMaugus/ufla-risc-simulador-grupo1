@@ -16,11 +16,7 @@ UFLA-RISC.
 1. Clone o repositório:
    git clone https://github.com/TobiasMaugus/ufla-risc-simulador-grupo1.git
 
-2. Compile o simulador:
-   cd src/simulador
-   python main.py
-
-3. Execute com um arquivo binário:
+2. Execute com um arquivo binário:
    python -m src.simulador.unidade_de_controle testes/teste_programa_3.txt
 
 ## Licença
